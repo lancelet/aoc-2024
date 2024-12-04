@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module P03 where
+module P03 (main) where
 
 import Control.Applicative ((<|>))
+import Data.Functor (($>))
 import Data.Text (Text)
 import Data.Text.IO (readFile)
 import Data.Void (Void)
@@ -16,15 +17,42 @@ import Prelude hiding (readFile)
 
 main :: IO ()
 main = do
-  exprs <- readInput
+  exprs <- readInputFirstPart
+  progs <- readInputSecondPart
   let rsum = sumExprs exprs
-  putStrLn $ "Sum of expressions: " <> show rsum
+  let rsumed = sumAllProgramInterpret progs
+  putStrLn $ "Sum of expressions:   " <> show rsum
+  putStrLn $ "Interpreted programs: " <> show rsumed
 
 ---- Multiplication Evaluation ------------------------------------------------
+
+data RunState = Enabled | Disabled
+
+newtype Program = Program [Instruction] deriving (Eq, Show)
+
+data Instruction
+  = IMul !Int !Int
+  | IEnable
+  | IDisable
+  deriving (Eq, Show)
 
 newtype Expr = Expr [Mul] deriving (Eq, Show)
 
 data Mul = Mul !Int !Int deriving (Eq, Show)
+
+sumAllProgramInterpret :: [Program] -> Int
+sumAllProgramInterpret ps = sum $ interpret <$> ps
+
+interpret :: Program -> Int
+interpret = go Enabled 0
+  where
+    go :: RunState -> Int -> Program -> Int
+    go Disabled r (Program (IEnable : xs)) = go Enabled r (Program xs)
+    go Disabled r (Program (_ : xs)) = go Disabled r (Program xs)
+    go Enabled r (Program (IDisable : xs)) = go Disabled r (Program xs)
+    go Enabled r (Program (IEnable : xs)) = go Enabled r (Program xs)
+    go Enabled r (Program ((IMul x y) : xs)) = go Enabled (r + x * y) (Program xs)
+    go _ r (Program []) = r
 
 evalMul :: Mul -> Int
 evalMul (Mul x y) = x * y
@@ -42,8 +70,51 @@ type Parser = Parsec Void Text
 inputFile :: FilePath
 inputFile = "../inputs/input-day-03.txt"
 
-readInput :: IO [Expr]
-readInput = do
+---- Second Part --------------------------------------------------------------
+
+readInputSecondPart :: IO [Program]
+readInputSecondPart = do
+  txt <- readFile inputFile
+  let res = parseMaybe parseAllPrograms txt
+  case res of
+    Nothing -> do
+      putStrLn "ERROR: Could not parse input file."
+      exitFailure
+    Just progs -> pure progs
+
+parseAllPrograms :: Parser [Program]
+parseAllPrograms = some (parseProgram <* newline) <* eof
+
+parseProgram :: Parser Program
+parseProgram = Program <$> parseFoundInstructions
+
+parseFoundInstructions :: Parser [Instruction]
+parseFoundInstructions =
+  many parseNextInstruction <* takeWhileP Nothing ('\n' /=)
+
+parseNextInstruction :: Parser Instruction
+parseNextInstruction =
+  try parseInstruction <|> try (anySingle *> parseNextInstruction)
+
+parseInstruction :: Parser Instruction
+parseInstruction =
+  (mulToInstruction <$> parseMul)
+    <|> parseEnable
+    <|> parseDisable
+
+mulToInstruction :: Mul -> Instruction
+mulToInstruction (Mul x y) = IMul x y
+
+parseEnable :: Parser Instruction
+parseEnable = string "do()" $> IEnable
+
+parseDisable :: Parser Instruction
+parseDisable = string "don't()" $> IDisable
+
+---- First Part ---------------------------------------------------------------
+
+readInputFirstPart :: IO [Expr]
+readInputFirstPart = do
   txt <- readFile inputFile
   let res = parseMaybe parseAllExpr txt
   case res of
