@@ -18,7 +18,9 @@ main :: IO ()
 main = do
   reports <- readInput
   let nSafe = countSafeReports reports
-  putStrLn $ "Safe report count: " <> show nSafe
+  let nSafeD = countSafeReportsD reports
+  putStrLn $ "Safe report count:                 " <> show nSafe
+  putStrLn $ "Safe report count (with dampener): " <> show nSafeD
 
 ---- Handling Reports ---------------------------------------------------------
 
@@ -26,6 +28,9 @@ newtype Report = Report [Int] deriving (Eq, Show)
 
 countSafeReports :: [Report] -> Int
 countSafeReports = count isReportSafe
+
+countSafeReportsD :: [Report] -> Int
+countSafeReportsD = count isReportSafeD
 
 count :: forall a. (a -> Bool) -> [a] -> Int
 count f = go 0
@@ -39,6 +44,13 @@ count f = go 0
 isReportSafe :: Report -> Bool
 isReportSafe report =
   isReportSafeIncreasing report || isReportSafeDecreasing report
+
+isReportSafeD :: Report -> Bool
+isReportSafeD report = any isReportSafe (removeEach report)
+
+removeEach :: Report -> [Report]
+removeEach (Report xs) =
+  Report <$> [take i xs ++ drop (i + 1) xs | i <- [0 .. length xs - 1]]
 
 isReportSafeIncreasing :: Report -> Bool
 isReportSafeIncreasing (Report xs) = all inRange $ mapAdjacent (flip (-)) xs
