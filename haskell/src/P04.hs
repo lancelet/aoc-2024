@@ -16,9 +16,34 @@ main :: IO ()
 main = do
   wg <- readInput
   let nWords = countWord "XMAS" wg
-  putStrLn $ "N instances of XMAS: " <> show nWords
+  let nMas = countMas wg
+  putStrLn $ "N instances of XMAS:         " <> show nWords
+  putStrLn $ "N instances of crossed XMAS: " <> show nMas
 
 ---- Processing ---------------------------------------------------------------
+
+countMas :: WordGrid -> Int
+countMas wg =
+  sum $
+    (\b -> if b then 1 else 0)
+      <$> [ isMas (r, c) wg
+            | r <- [0 .. wgRows wg - 1],
+              c <- [0 .. wgCols wg - 1]
+          ]
+
+-- Configurations of MAS:
+--  1     2     3     4
+-- M.S   M.M   S.S   S.M
+-- .A.   .A.   .A.   .A.
+-- M.S   S.S   M.M   S.M
+isMas :: (Int, Int) -> WordGrid -> Bool
+isMas (r, c) wg =
+  (getElem wg (r, c) == Just 'A')
+    && ( let w1 = getWord (\(r', c') -> (r' + 1, c' + 1)) 3 (r - 1, c - 1) wg
+             w2 = getWord (\(r', c') -> (r' - 1, c' + 1)) 3 (r + 1, c - 1) wg
+          in (w1 == Just "MAS" || w1 == Just "SAM")
+               && (w2 == Just "MAS" || w2 == Just "SAM")
+       )
 
 countWord :: String -> WordGrid -> Int
 countWord target wg =
