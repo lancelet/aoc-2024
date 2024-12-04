@@ -42,8 +42,17 @@ library:
 
 executables:
   p01:
-    main:                Main01.hs
-    source-dirs:         app
+    main:                Main.hs
+    source-dirs:         app/day01
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - aoc2024
+  p02:
+    main:                Main.hs
+    source-dirs:         app/day02
     ghc-options:
     - -threaded
     - -rtsopts
