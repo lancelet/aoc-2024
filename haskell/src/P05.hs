@@ -18,7 +18,9 @@ main = do
   putStrLn "Day 05"
   doc <- readInput
   let part1Sum = part1 doc
+  let part2Sum = part2 doc
   putStrLn $ "Sum of valid middle pages: " <> show part1Sum
+  putStrLn $ "Sum of fixed middle pages: " <> show part2Sum
 
 ---- Checking Correct Updates -------------------------------------------------
 
@@ -45,10 +47,10 @@ updatePagesIsValid am (UpdatePages ps) = go IntSet.empty ps
   where
     go :: PageSet -> [Int] -> Bool
     go _ [] = True
-    go bs (x : xs) =
+    go beforeSet (x : xs) =
       let afterSet = Map.findWithDefault IntSet.empty x am
-          u = IntSet.intersection bs afterSet
-       in (IntSet.null u && go (IntSet.insert x bs) xs)
+          u = IntSet.intersection beforeSet afterSet
+       in (IntSet.null u && go (IntSet.insert x beforeSet) xs)
 
 -- Find the middle page.
 middlePage :: UpdatePages -> Int
@@ -59,6 +61,33 @@ part1 (Document orderRules updatePages) =
   let am = mkAfterMap orderRules
       validUpdates = filter (updatePagesIsValid am) updatePages
       middlePages = middlePage <$> validUpdates
+   in sum middlePages
+
+fixUpdatePages :: AfterMap -> UpdatePages -> UpdatePages
+fixUpdatePages am p =
+  if updatePagesIsValid am p
+    then p
+    else fixUpdatePages am (evolveUpdatePages am p)
+
+evolveUpdatePages :: AfterMap -> UpdatePages -> UpdatePages
+evolveUpdatePages am (UpdatePages ps) =
+  UpdatePages $ go IntSet.empty [] ps
+  where
+    go :: PageSet -> [Int] -> [Int] -> [Int]
+    go _ accum [] = reverse accum
+    go before accum (x : xs) =
+      let after = Map.findWithDefault IntSet.empty x am
+          u = IntSet.intersection before after
+       in if IntSet.null u
+            then go (IntSet.insert x before) (x : accum) xs
+            else x : (reverse accum ++ xs)
+
+part2 :: Document -> Int
+part2 (Document orderRules updatePages) =
+  let am = mkAfterMap orderRules
+      invalidUpdates = filter (not . updatePagesIsValid am) updatePages
+      fixedUpdates = fixUpdatePages am <$> invalidUpdates
+      middlePages = middlePage <$> fixedUpdates
    in sum middlePages
 
 ---- Parsing ------------------------------------------------------------------
