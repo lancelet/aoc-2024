@@ -60,7 +60,7 @@ data GuardVisitMap = GuardVisitMap
   deriving (Eq, Show)
 
 data RichGuardVisitMap = RichGuardVisitMap
-  { rgmRows :: !Int,
+  { -- rgmRows :: !Int,
     rgmCols :: !Int,
     rgmData :: !(VS.Vector Word8)
   }
@@ -70,10 +70,12 @@ part1 rm gp =
   let gm = findGuardVisitMap rm gp
    in guardVisitUniquePos gm
 
+{-
 part2 :: RoomMap -> GuardPos -> Int
 part2 rm gp =
   let gm = findGuardVisitMap rm gp
    in length $ filter (hasLoop gp) $ mapsWithExtraObstacles gp gm rm
+-}
 
 part2IO :: RoomMap -> GuardPos -> IO Int
 part2IO rm gp = do
@@ -202,7 +204,7 @@ emptyGuardVisitMap rm =
 emptyRichGuardVisitMap :: RoomMap -> RichGuardVisitMap
 emptyRichGuardVisitMap rm =
   let n = rmRows rm * rmCols rm
-   in RichGuardVisitMap (rmRows rm) (rmCols rm) (VS.fromList $ replicate n 0)
+   in RichGuardVisitMap {- (rmRows rm) -} (rmCols rm) (VS.fromList $ replicate n 0)
 
 guardOrientationToWord8Bit :: GuardOrientation -> Word8
 guardOrientationToWord8Bit g =
