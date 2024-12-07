@@ -31,6 +31,7 @@ library
       P04
       P05
       P06
+      P07
   other-modules:
       Paths_aoc2024
   autogen-modules:
@@ -145,6 +146,24 @@ executable p06
   hs-source-dirs:
       app/day06
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:
+      aoc2024
+    , base >=4.7 && <5
+    , containers >=0.6.7 && <1
+    , megaparsec >=9.5.0 && <10
+    , text >=2.0.2 && <3
+    , vector >=0.13.1.0 && <0.14
+  default-language: Haskell2010
+
+executable p07
+  main-is: Main.hs
+  other-modules:
+      Paths_aoc2024
+  autogen-modules:
+      Paths_aoc2024
+  hs-source-dirs:
+      app/day07
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aoc2024
     , base >=4.7 && <5
