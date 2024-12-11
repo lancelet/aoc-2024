@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -35,7 +36,7 @@ newtype StoneNumber = StoneNumber Int deriving (Eq, Ord, Show, Hashable)
 newtype StepsRemaining = StepsRemaining Int deriving (Eq, Ord, Show, Hashable)
 
 data StoneAtLevel
-  = StoneAtLevel !StepsRemaining !StoneNumber
+  = StoneAtLevel {-# UNPACK #-} !StepsRemaining {-# UNPACK #-} !StoneNumber
   deriving (Eq, Show, Ord, Generic)
 
 instance Hashable StoneAtLevel
@@ -43,8 +44,8 @@ instance Hashable StoneAtLevel
 type Cache = Map StoneAtLevel Int
 
 data SplitResult
-  = SRSingle !StoneAtLevel
-  | SRPair !StoneAtLevel !StoneAtLevel
+  = SRSingle {-# UNPACK #-} !StoneAtLevel
+  | SRPair {-# UNPACK #-} !StoneAtLevel {-# UNPACK #-} !StoneAtLevel
 
 countCachedStones :: Int -> Stones -> Int
 countCachedStones nsplits = go Map.empty
@@ -57,26 +58,26 @@ countCachedStones nsplits = go Map.empty
        in count + go cache' (Stones xs)
 
 countCached :: Cache -> StoneAtLevel -> (Int, Cache)
-countCached cache (StoneAtLevel (StepsRemaining 0) _) = (1, cache)
-countCached cache sal@(StoneAtLevel (StepsRemaining r) (StoneNumber sn)) =
-  let putInCache z cn ca =
+countCached !cache (StoneAtLevel (StepsRemaining 0) _) = (1, cache)
+countCached !cache sal@(StoneAtLevel (StepsRemaining r) (StoneNumber sn)) =
+  let putInCache !z !cn !ca =
         if sn == 0 || sn == 1 || r > 4
           then Map.insert z cn ca
           else ca
    in case Map.lookup sal cache of
-        Just count ->
+        Just !count ->
           (count, cache)
         Nothing ->
           case split sal of
-            SRSingle a ->
-              let (count, cache') = countCached cache a
-                  cache'' = putInCache sal count cache'
-               in (count, Map.union cache cache'')
-            SRPair a b ->
-              let (count_a, cache_a) = countCached cache a
-                  cache_a'' = putInCache a count_a cache_a
-                  (count_b, cache_b) = countCached (Map.union cache cache_a'') b
-                  cache_b'' = putInCache b count_b cache_b
+            SRSingle !a ->
+              let (!count, !cache') = countCached cache a
+                  !cache'' = putInCache sal count cache'
+               in (count, cache'')
+            SRPair !a !b ->
+              let (!count_a, !cache_a) = countCached cache a
+                  !cache_a'' = putInCache a count_a cache_a
+                  (!count_b, !cache_b) = countCached cache_a'' b
+                  !cache_b'' = putInCache b count_b cache_b
                in (count_a + count_b, cache_b'')
 
 split :: StoneAtLevel -> SplitResult
