@@ -59,11 +59,8 @@ countCachedStones nsplits = go Map.empty
 
 countCached :: Cache -> StoneAtLevel -> (Int, Cache)
 countCached !cache (StoneAtLevel (StepsRemaining 0) _) = (1, cache)
-countCached !cache sal@(StoneAtLevel (StepsRemaining r) (StoneNumber sn)) =
-  let putInCache !z !cn !ca =
-        if sn == 0 || sn == 1 || r > 4
-          then Map.insert z cn ca
-          else ca
+countCached !cache sal =
+  let putInCache !z !cn !ca = Map.insert z cn ca
    in case Map.lookup sal cache of
         Just !count ->
           (count, cache)
