@@ -22,7 +22,9 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - containers >= 0.6.7 && < 1
+- deepseq >= 1.4.8.1 && < 2
 - megaparsec >= 9.5.0 && < 10
+- MemoTrie >= 0.6.11 && < 1
 - text >= 2.0.2 && < 3
 - vector >= 0.13.1.0 && < 0.14
 - vector-algorithms >= 0.9.0.2 && < 1
@@ -129,6 +131,15 @@ executables:
   p10:
     main:                Main.hs
     source-dirs:         app/day10
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - aoc2024
+  p11:
+    main:                Main.hs
+    source-dirs:         app/day11
     ghc-options:
     - -threaded
     - -rtsopts
