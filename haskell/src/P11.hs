@@ -1,10 +1,15 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module P11 (main) where
 
+import Data.Hashable (Hashable)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
 import Data.Text.IO (readFile)
 import Data.Void (Void)
+import GHC.Generics (Generic)
 import System.Exit (exitFailure)
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, optional, parse, sepBy)
 import Text.Megaparsec.Char (char, newline)
@@ -25,19 +30,21 @@ main = do
 part2 :: Stones -> Int
 part2 = countCachedStones 75
 
-newtype StoneNumber = StoneNumber Int deriving (Eq, Ord, Show)
+newtype StoneNumber = StoneNumber Int deriving (Eq, Ord, Show, Hashable)
 
-newtype StepsRemaining = StepsRemaining Int deriving (Eq, Ord, Show)
+newtype StepsRemaining = StepsRemaining Int deriving (Eq, Ord, Show, Hashable)
 
 data StoneAtLevel
   = StoneAtLevel !StepsRemaining !StoneNumber
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Generic)
+
+instance Hashable StoneAtLevel
 
 type Cache = Map StoneAtLevel Int
 
 data SplitResult
   = SRSingle !StoneAtLevel
-  | SRPair !StoneAtLevel StoneAtLevel
+  | SRPair !StoneAtLevel !StoneAtLevel
 
 countCachedStones :: Int -> Stones -> Int
 countCachedStones nsplits = go Map.empty
@@ -51,22 +58,26 @@ countCachedStones nsplits = go Map.empty
 
 countCached :: Cache -> StoneAtLevel -> (Int, Cache)
 countCached cache (StoneAtLevel (StepsRemaining 0) _) = (1, cache)
-countCached cache sal =
-  case Map.lookup sal cache of
-    Just count ->
-      (count, cache)
-    Nothing ->
-      case split sal of
-        SRSingle a ->
-          let (count, cache') = countCached cache a
-              cache'' = Map.insert sal count cache'
-           in (count, Map.union cache cache'')
-        SRPair a b ->
-          let (count_a, cache_a) = countCached cache a
-              cache_a'' = Map.insert a count_a cache_a
-              (count_b, cache_b) = countCached (Map.union cache cache_a'') b
-              cache_b'' = Map.insert b count_b cache_b
-           in (count_a + count_b, cache_b'')
+countCached cache sal@(StoneAtLevel (StepsRemaining r) (StoneNumber sn)) =
+  let putInCache z cn ca =
+        if sn == 0 || sn == 1 || r > 4
+          then Map.insert z cn ca
+          else ca
+   in case Map.lookup sal cache of
+        Just count ->
+          (count, cache)
+        Nothing ->
+          case split sal of
+            SRSingle a ->
+              let (count, cache') = countCached cache a
+                  cache'' = putInCache sal count cache'
+               in (count, Map.union cache cache'')
+            SRPair a b ->
+              let (count_a, cache_a) = countCached cache a
+                  cache_a'' = putInCache a count_a cache_a
+                  (count_b, cache_b) = countCached (Map.union cache cache_a'') b
+                  cache_b'' = putInCache b count_b cache_b
+               in (count_a + count_b, cache_b'')
 
 split :: StoneAtLevel -> SplitResult
 split sal =

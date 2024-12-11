@@ -23,9 +23,11 @@ dependencies:
 - base >= 4.7 && < 5
 - containers >= 0.6.7 && < 1
 - deepseq >= 1.4.8.1 && < 2
+- hashable >= 1.4.4.0 && < 2
 - megaparsec >= 9.5.0 && < 10
 - MemoTrie >= 0.6.11 && < 1
 - text >= 2.0.2 && < 3
+- unordered-containers >= 0.2.20 && < 1
 - vector >= 0.13.1.0 && < 0.14
 - vector-algorithms >= 0.9.0.2 && < 1
 
@@ -144,6 +146,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
     dependencies:
     - aoc2024
 
