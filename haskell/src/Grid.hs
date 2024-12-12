@@ -3,28 +3,50 @@
 
 module Grid
   ( Grid,
+    BoolGrid,
     filledWith,
     fromList,
     fromLists,
+    generate,
+    toLists,
     getRows,
     getCols,
+    rowMajorCoords,
     getElem,
+    getElemUnsafe,
     locations,
     setMulti,
     countEqual,
     parseGridDenseNL,
     thaw,
     freeze,
+    read,
+    readMaybe,
+    write,
+    prettyBoolGrid,
+    emptyBoolGrid,
+    emptyBoolGridMatchingSize,
+    boolGridOr,
+    boolGridOrUnsafe,
+    countBoolGrid,
+    floodFill,
+    expandGridBy,
   )
 where
 
+import Control.Monad (filterM)
+import Control.Monad.ST (runST)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromMaybe)
 import qualified Data.Vector.Generic as VG
+import qualified Data.Vector.Generic.Mutable as VGM
 import Data.Vector.Mutable (PrimMonad, PrimState)
+import qualified Data.Vector.Unboxed as VU
 import Data.Word (Word32)
 import Text.Megaparsec (Parsec, Stream, Token, some)
 import Text.Megaparsec.Char (newline)
+import Prelude hiding (read)
 
 -- | A grid of values.
 data Grid v a = Grid
@@ -95,6 +117,33 @@ fromLists xxs =
                 then fromList (intToW32 nRows) (intToW32 nCols) (concat xxs)
                 else Nothing
 
+-- | Generate a grid from a generator function.
+generate ::
+  forall v a.
+  (VG.Vector v a) =>
+  -- Rows.
+  Word32 ->
+  -- Colums.
+  Word32 ->
+  -- Generator function.
+  ((Word32, Word32) -> a) ->
+  -- Generated grid.
+  Grid v a
+generate nRows nCols f =
+  fromMaybe (error "Dimensions should be correct") $
+    Grid.fromList nRows nCols $
+      [ f (r, c)
+        | r <- [0 .. nRows - 1],
+          c <- [0 .. nCols - 1]
+      ]
+
+-- | Convert a grid to a list of lists.
+toLists :: (VG.Vector v a) => Grid v a -> [[a]]
+toLists grid =
+  [ [getElemUnsafe grid (r, c) | c <- [0 .. getCols grid - 1]]
+    | r <- [0 .. getRows grid - 1]
+  ]
+
 -- | Return the number of rows in a grid.
 getRows :: Grid v a -> Word32
 getRows = rows
@@ -102,6 +151,11 @@ getRows = rows
 -- | Return the number of columns in a grid.
 getCols :: Grid v a -> Word32
 getCols = cols
+
+-- | List of all coordinates in the grid, in row major form.
+rowMajorCoords :: Grid v a -> [(Word32, Word32)]
+rowMajorCoords grid =
+  [(r, c) | r <- [0 .. getRows grid - 1], c <- [0 .. getCols grid - 1]]
 
 -- | Get an element from the grid, if it is in range.
 getElem :: (VG.Vector v a) => Grid v a -> (Word32, Word32) -> Maybe a
@@ -120,6 +174,31 @@ lindex grid (row, col) =
       iCol = w32ToInt col
       iCols = w32ToInt $ getCols grid
    in iRow * iCols + iCol
+
+{-
+-- | Convert a linear index into a plain index.
+--
+-- This throws an error if the index is out of range.
+unlindexUnsafe :: Grid v a -> Int -> (Word32, Word32)
+unlindexUnsafe grid lx =
+  case unlindex grid lx of
+    Nothing -> error "Grid.unlindexUnsafe: index out of bounds"
+    Just rc -> rc
+
+-- | Convert a linear index into a plain index.
+unlindex :: Grid v a -> Int -> Maybe (Word32, Word32)
+unlindex grid lx =
+  let iRows = w32ToInt $ getRows grid
+      iCols = w32ToInt $ getCols grid
+      iMax = iRows * iCols
+      iRow = lx `div` iCols
+      iCol = lx `mod` iCols
+      row = intToW32 iRow
+      col = intToW32 iCol
+   in if lx >= iMax
+        then Nothing
+        else Just (row, col)
+-}
 
 -- | Check if a grid coordinate is in range.
 coordInRange :: Grid v a -> (Word32, Word32) -> Bool
@@ -175,6 +254,40 @@ freeze grid = do
         cols = getCols grid,
         cells = gCells
       }
+
+-- | Read an element from a mutable grid; throwing an exception if
+--   out of bounds
+read ::
+  (PrimMonad m, VG.Vector v a) =>
+  Grid (VG.Mutable v (PrimState m)) a ->
+  (Word32, Word32) ->
+  m a
+read grid rc = do
+  mval <- readMaybe grid rc
+  case mval of
+    Nothing -> error "Grid.read: coordinates are out of bounds"
+    Just x -> pure x
+
+-- | Read an element from a mutable grid.
+readMaybe ::
+  (PrimMonad m, VG.Vector v a) =>
+  Grid (VG.Mutable v (PrimState m)) a ->
+  (Word32, Word32) ->
+  m (Maybe a)
+readMaybe grid rc
+  | not (coordInRange grid rc) = pure Nothing
+  | otherwise = Just <$> VGM.read (cells grid) (lindex grid rc)
+
+-- | Write an element into a mutable grid.
+write ::
+  (PrimMonad m, VG.Vector v a) =>
+  Grid (VG.Mutable v (PrimState m)) a ->
+  (Word32, Word32) ->
+  a ->
+  m ()
+write grid rc value
+  | not (coordInRange grid rc) = error $ "Grid.write: Index out of bounds!"
+  | otherwise = VGM.write (cells grid) (lindex grid rc) value
 
 -- | Set multiple elements of a grid to a given value.
 setMulti ::
@@ -232,3 +345,123 @@ parseGridDenseNL parseItem = do
   case fromLists parsedRows of
     Nothing -> fail $ "Could not convert rows to Grid."
     Just grid -> pure grid
+
+-- | Grid containing boolean values.
+type BoolGrid = Grid VU.Vector Bool
+
+-- | Mutable boolean grid.
+type MutBoolGrid m = Grid (VG.Mutable VU.Vector (PrimState m)) Bool
+
+-- | Pretty-print a boolean mask grid.
+prettyBoolGrid :: BoolGrid -> String
+prettyBoolGrid grid = unlines $ prettyRow <$> toLists grid
+  where
+    prettyRow = fmap prettyCol
+    prettyCol x = if x then 'T' else '.'
+
+-- | Empty boolean grid.
+emptyBoolGrid :: Word32 -> Word32 -> BoolGrid
+emptyBoolGrid n_rows n_cols = filledWith n_rows n_cols False
+
+-- | Return the count of `True` inside a `BoolGrid`.
+countBoolGrid :: BoolGrid -> Int
+countBoolGrid = length . filter id . VG.toList . cells
+
+-- | Create an empty bool grid of a size matching an existing grid.
+emptyBoolGridMatchingSize :: Grid v a -> BoolGrid
+emptyBoolGridMatchingSize grid =
+  let n_rows = getRows grid
+      n_cols = getCols grid
+   in emptyBoolGrid n_rows n_cols
+
+-- | Or two boolean grids together, throwing an exception if their sizes
+--   differ.
+boolGridOrUnsafe :: BoolGrid -> BoolGrid -> BoolGrid
+boolGridOrUnsafe gridA gridB =
+  case boolGridOr gridA gridB of
+    Just bg -> bg
+    Nothing -> error "Grid.boolGridOrUnsafe: grid sizes differed"
+
+-- | Or two boolean grids together if they are the same size.
+boolGridOr :: BoolGrid -> BoolGrid -> Maybe BoolGrid
+boolGridOr gridA gridB =
+  let n_rows = getRows gridA
+      n_cols = getCols gridA
+      sz = (n_rows == getRows gridB) && (n_cols == getCols gridB)
+   in if sz
+        then
+          Just $
+            Grid n_rows n_cols $
+              VG.zipWith (||) (cells gridA) (cells gridB)
+        else Nothing
+
+floodFill :: (VG.Vector v a, Eq a) => (Word32, Word32) -> Grid v a -> BoolGrid
+floodFill (row, col) grid =
+  let mask = emptyBoolGridMatchingSize grid
+   in case getElem grid (row, col) of
+        Nothing -> mask
+        Just value -> runST $ do
+          mask' <- thaw mask
+          floodFillMut value [(row, col)] grid mask'
+          freeze mask'
+
+floodFillMut ::
+  (PrimMonad m, VG.Vector v a, Eq a) =>
+  a ->
+  [(Word32, Word32)] ->
+  Grid v a ->
+  MutBoolGrid m ->
+  m ()
+floodFillMut _ [] _ _ = pure ()
+floodFillMut value ((row, col) : xs) grid mask = do
+  -- set the current pixel in the mask image
+  write mask (row, col) True
+  -- find the next pixels to set; they must be in-range and not already set
+  -- in the mask
+  dp_next <-
+    filterM (fmap not . read mask) $
+      filter (\rc -> getElemUnsafe grid rc == value) $
+        filter
+          (coordInRange grid)
+          [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]
+  -- loop
+  floodFillMut value (dp_next <> xs) grid mask
+
+-- | Expand a grid by a given number of cells equally on all sides.
+expandGridBy ::
+  forall v a.
+  (VG.Vector v a) =>
+  -- | Number of cells to expand by.
+  Word32 ->
+  -- | Value to put in the new cells.
+  a ->
+  -- | Old grid.
+  Grid v a ->
+  -- | New grid.
+  Grid v a
+expandGridBy n value grid =
+  let n_rows, n_cols :: Word32
+      n_rows = n + n + getRows grid
+      n_cols = n + n + getCols grid
+
+      n_rows_i, n_cols_i, n_cells :: Int
+      n_rows_i = w32ToInt n_rows
+      n_cols_i = w32ToInt n_cols
+      n_cells = n_rows_i * n_cols_i
+
+      cells' :: v a
+      cells' = VG.generate n_cells f
+
+      f :: Int -> a
+      f i =
+        let row_out = i `div` n_cols_i
+            col_out = i `mod` n_cols_i
+
+            row_in = row_out - w32ToInt n
+            col_in = col_out - w32ToInt n
+
+            row_in_w = intToW32 row_in
+            col_in_w = intToW32 col_in
+            rc_in = (row_in_w, col_in_w)
+         in fromMaybe value $ getElem grid rc_in
+   in Grid n_rows n_cols cells'
