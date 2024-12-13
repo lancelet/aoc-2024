@@ -158,6 +158,15 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - aoc2024
+  p13:
+    main:                Main.hs
+    source-dirs:         app/day13
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - aoc2024
 
 tests:
   aoc2024-test:
