@@ -37,7 +37,9 @@
               hpkgs.haskell-language-server
               hpkgs.implicit-hie
               hpkgs.retrie
+	      hpkgs.zlib
               nodejs
+	      zlib
             ];
           };
       }

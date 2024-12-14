@@ -48,7 +48,8 @@ library
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
     , deepseq >=1.4.8.1 && <2
@@ -70,7 +71,8 @@ executable p01
       app/day01
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -93,7 +95,8 @@ executable p02
       app/day02
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -116,7 +119,8 @@ executable p03
       app/day03
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -139,7 +143,8 @@ executable p04
       app/day04
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -162,7 +167,8 @@ executable p05
       app/day05
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -185,7 +191,8 @@ executable p06
       app/day06
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -208,7 +215,8 @@ executable p07
       app/day07
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -231,7 +239,8 @@ executable p08
       app/day08
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -254,7 +263,8 @@ executable p09
       app/day09
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -277,7 +287,8 @@ executable p10
       app/day10
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -300,7 +311,8 @@ executable p11
       app/day11
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -323,7 +335,8 @@ executable p12
       app/day12
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -346,7 +359,8 @@ executable p13
       app/day13
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -369,7 +383,8 @@ executable p14
       app/day14
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1
@@ -393,7 +408,8 @@ test-suite aoc2024-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MemoTrie >=0.6.11 && <1
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
     , aoc2024
     , base >=4.7 && <5
     , containers >=0.6.7 && <1

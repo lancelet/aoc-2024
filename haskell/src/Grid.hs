@@ -9,6 +9,7 @@ module Grid
     fromLists,
     generate,
     toLists,
+    toImage,
     getRows,
     getCols,
     rowMajorCoords,
@@ -34,6 +35,7 @@ module Grid
   )
 where
 
+import Codec.Picture (Image, Pixel, generateImage)
 import Control.Monad (filterM)
 import Control.Monad.ST (runST)
 import Data.Map.Strict (Map)
@@ -143,6 +145,22 @@ toLists grid =
   [ [getElemUnsafe grid (r, c) | c <- [0 .. getCols grid - 1]]
     | r <- [0 .. getRows grid - 1]
   ]
+
+-- | Convert a grid to an image.
+toImage ::
+  forall v a px.
+  (VG.Vector v a, Pixel px) =>
+  (a -> px) ->
+  Grid v a ->
+  Image px
+toImage f grid =
+  generateImage genf (w32ToInt $ getCols grid) (w32ToInt $ getRows grid)
+  where
+    genf :: Int -> Int -> px
+    genf x y =
+      let r = intToW32 y
+          c = intToW32 x
+       in f $ Grid.getElemUnsafe grid (r, c)
 
 -- | Return the number of rows in a grid.
 getRows :: Grid v a -> Word32

@@ -1,15 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module P14 where
+module P14 (main) where
 
+import Codec.Picture (Image, Pixel8, writePng)
 import Control.Exception (assert)
+import Control.Monad (unless, when)
+import Control.Monad.ST (runST)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Text (Text)
 import Data.Text.IO (readFile)
+import qualified Data.Vector.Unboxed as VU
 import Data.Void (Void)
+import Grid (Grid)
+import qualified Grid
 import System.Exit (exitFailure)
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, optional, parse, some)
 import Text.Megaparsec.Char (char, newline, string)
 import Text.Megaparsec.Char.Lexer (decimal, signed)
+import Text.Printf (printf)
 import Prelude hiding (readFile)
 
 main :: IO ()
@@ -18,6 +29,69 @@ main = do
   robots <- readInput
   let part1Result = part1 robots
   putStrLn $ "Part 1 Result: " <> show part1Result
+
+  putStrLn "Part 2"
+  let regionSize = RegionSize 101 103
+  -- Inspection shows that all the periods are the same
+  let period = head $ robotPeriod regionSize <$> robots
+  putStrLn $ "Peroid: " <> show period
+  let stepSize = 1
+  ref_frame <- newIORef (0 :: Int)
+  ref_cur_robots <- newIORef robots
+  ref_done <- newIORef False
+  loop ref_done $ do
+    frame <- readIORef ref_frame
+    cur_robots <- readIORef ref_cur_robots
+    let fileName :: String = printf "f%07d.png" frame
+    putStrLn $ "Frame: " <> show frame <> " : " <> fileName
+    writePng fileName $ plotRobotsImage regionSize cur_robots
+    let next_robots = traceRobot regionSize stepSize <$> cur_robots
+    writeIORef ref_frame (frame + stepSize)
+    writeIORef ref_cur_robots next_robots
+    when (frame == period) $ writeIORef ref_done True
+
+loop :: IORef Bool -> IO () -> IO ()
+loop ref action = do
+  b <- readIORef ref
+  unless b (action >> loop ref action)
+
+---- Part2 --------------------------------------------------------------------
+
+plotRobotsImage :: RegionSize -> [Robot] -> Image Pixel8
+plotRobotsImage rs = Grid.toImage f . gridFromMap rs . collectRobots
+  where
+    f :: Int -> Pixel8
+    f 0 = 0
+    f 1 = 127
+    f 2 = 200
+    f 3 = 240
+    f _ = 255
+
+collectRobots :: [Robot] -> Map V2 Int
+collectRobots = go Map.empty
+  where
+    go :: Map V2 Int -> [Robot] -> Map V2 Int
+    go m [] = m
+    go m (x : xs) = go (Map.insertWith (+) (robotPos x) 1 m) xs
+
+gridFromMap :: RegionSize -> Map V2 Int -> Grid VU.Vector Int
+gridFromMap (RegionSize rx ry) posMap = runST $ do
+  grid <- Grid.thaw $ Grid.filledWith (fromIntegral ry) (fromIntegral rx) 0
+  mapM_
+    (\(V2 x y, n) -> Grid.write grid (fromIntegral y, fromIntegral x) n)
+    (Map.toList posMap)
+  Grid.freeze grid
+
+robotPeriod :: RegionSize -> Robot -> Int
+robotPeriod rs robot' = go 0 robot'
+  where
+    go 0 robot =
+      let next = traceRobot rs 1 robot
+       in if next == robot' then 0 else go 1 next
+    go n robot =
+      if robot == robot'
+        then n
+        else go (n + 1) (traceRobot rs 1 robot)
 
 ---- Part1 --------------------------------------------------------------------
 
@@ -63,7 +137,7 @@ data Robot = Robot
   deriving (Eq, Show)
 
 -- 2D point or 2D vector.
-data V2 = V2 {-# UNPACK #-} !Int {-# UNPACK #-} !Int deriving (Eq, Show)
+data V2 = V2 {-# UNPACK #-} !Int {-# UNPACK #-} !Int deriving (Eq, Ord, Show)
 
 data RegionSize = RegionSize
   { regionSizeX :: {-# UNPACK #-} !Int,
