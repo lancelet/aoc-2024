@@ -8,6 +8,7 @@ module Grid
     fromList,
     fromLists,
     generate,
+    toList,
     toLists,
     toImage,
     getRows,
@@ -145,6 +146,10 @@ toLists grid =
   [ [getElemUnsafe grid (r, c) | c <- [0 .. getCols grid - 1]]
     | r <- [0 .. getRows grid - 1]
   ]
+
+-- | Convert a grid to a row-major list of elements.
+toList :: (VG.Vector v a) => Grid v a -> [a]
+toList grid = VG.toList (cells grid)
 
 -- | Convert a grid to an image.
 toImage ::
