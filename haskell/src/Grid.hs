@@ -37,6 +37,7 @@ module Grid
 where
 
 import Codec.Picture (Image, Pixel, generateImage)
+import Control.Exception (assert)
 import Control.Monad (filterM)
 import Control.Monad.ST (runST)
 import Data.Map.Strict (Map)
@@ -117,7 +118,11 @@ fromLists xxs =
           let nCols = length . head $ xxs
               allColsMatch = all ((nCols ==) . length) xxs
            in if allColsMatch
-                then fromList (intToW32 nRows) (intToW32 nCols) (concat xxs)
+                then
+                  let xs = concat xxs
+                   in assert
+                        (length xs == nRows * nCols)
+                        (fromList (intToW32 nRows) (intToW32 nCols) xs)
                 else Nothing
 
 -- | Generate a grid from a generator function.
