@@ -1,12 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module P15 where
+{-# HLINT ignore "Use lambda-case" #-}
 
-import Control.Monad (when)
+module P15 (main) where
+
+import Control.Monad (forM, forM_, when)
 import Control.Monad.ST (ST, runST)
 import Data.Functor (($>))
-import Data.IORef (newIORef, readIORef, writeIORef)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
 import Data.STRef (newSTRef, readSTRef, writeSTRef)
 import Data.Text (Text)
 import Data.Text.IO (readFile)
@@ -23,9 +25,8 @@ import Prelude hiding (readFile)
 main :: IO ()
 main = do
   putStrLn "Day 15"
-  -- mainEx1
-  -- mainEx2
   part1
+  part2
 
 part1 :: IO ()
 part1 = do
@@ -39,56 +40,16 @@ part1 = do
   let gs = sumGPSCoords (stateMap sf)
   putStrLn $ "Sum of GPS coordinates: " <> show gs
 
-mainEx1 :: IO ()
-mainEx1 = do
-  putStrLn "Example 1"
-  let inputFile = "../inputs/input-day-15-example-1.txt"
-
+part2 :: IO ()
+part2 = do
+  putStrLn "Part 2"
+  let inputFile = "../inputs/input-day-15.txt"
   document <- loadFile inputFile
-  let s0 = initState (docMap document)
+  let s0 = scaleUpState . initState . docMap $ document
   let m0 = docMoves document
-  let sf = executeAllMoves m0 s0
-
-  putStrLn "Final State: "
-  putStrLn . prettyState $ sf
-
-  let gs = sumGPSCoords (stateMap sf)
+  let sf = executeAllMovesLarge m0 s0
+  let gs = sumGPSCoordsLarge . sstateMap $ sf
   putStrLn $ "Sum of GPS coordinates: " <> show gs
-
-mainEx2 :: IO ()
-mainEx2 = do
-  putStrLn "Example 2"
-  let inputFile = "../inputs/input-day-15-example-2.txt"
-
-  document <- loadFile inputFile
-  let s0 = initState (docMap document)
-  let m0 = docMoves document
-
-  ref_state <- newIORef s0
-  ref_moves <- newIORef m0
-
-  loopBoolIO $ do
-    state <- readIORef ref_state
-    moves <- readIORef ref_moves
-
-    putStrLn $ prettyState state
-
-    case popMove moves of
-      Nothing -> do
-        let gs = sumGPSCoords (stateMap state)
-        putStrLn $ "Sum of GPS coordinates: " <> show gs
-        pure False
-      Just (move, moves') -> do
-        putStrLn $ "Move: " <> [prettyMove move]
-        let state' = executeMove move state
-        writeIORef ref_state state'
-        writeIORef ref_moves moves'
-        pure True
-
-loopBoolIO :: IO Bool -> IO ()
-loopBoolIO action = do
-  result <- action
-  when result $ loopBoolIO action
 
 ---- Types --------------------------------------------------------------------
 
@@ -120,9 +81,15 @@ data Document = Document
 --   position.
 newtype RoomMap = RoomMap (Grid V.Vector Cell) deriving (Eq, Show)
 
+-- | Scaled-up room map.
+newtype SRoomMap = SRoomMap (Grid V.Vector SCell) deriving (Eq, Show)
+
 -- | Initial map read in from a file. This is the same as the "room map", but
 --   includes the robot position.
 newtype InitMap = InitMap (Grid V.Vector InitCell) deriving (Eq, Show)
+
+-- | Move mask is a boolean grid indicating which cells can be moved.
+type MoveMask = Grid.BoolGrid
 
 -- | List of moves for the robot.
 newtype Moves = Moves [Move] deriving (Eq, Show)
@@ -149,6 +116,14 @@ moveToInc move =
     MoveLeft -> V2 (-1) 0
     MoveRight -> V2 1 0
 
+-- | Scaled up cells.
+data SCell
+  = SCWall
+  | SCBoxL
+  | SCBoxR
+  | SCEmpty
+  deriving (Eq, Show)
+
 -- | Cell in the map being processed (excludes the robot).
 data Cell
   = CWall
@@ -171,6 +146,14 @@ data State = State
   }
   deriving (Eq, Show)
 
+-- | Scaled-up state.
+data SState = SState
+  { sstateMap :: !SRoomMap,
+    sstateRobot :: !V2
+  }
+  deriving (Eq, Show)
+
+{-
 -- | Pretty-print the state.
 prettyState :: State -> String
 prettyState (State (RoomMap grid) xy) =
@@ -222,6 +205,30 @@ chunksOf n = go n []
     go _ accum [] = [reverse accum]
     go 0 accum xs = reverse accum : go n [] xs
     go i accum (x : xs) = go (i - 1) (x : accum) xs
+
+prettySState :: SState -> String
+prettySState (SState (SRoomMap grid) rp) =
+  unlines $
+    chunksOf (fromIntegral $ Grid.getCols grid) $
+      [ f r c
+        | r <- [0 .. Grid.getRows grid - 1],
+          c <- [0 .. Grid.getCols grid - 1]
+      ]
+  where
+    f :: Word32 -> Word32 -> Char
+    f r c =
+      if gridRCToV2 (r, c) == rp
+        then '@'
+        else prettySCell (Grid.getElemUnsafe grid (r, c))
+
+prettySCell :: SCell -> Char
+prettySCell scell =
+  case scell of
+    SCWall -> '#'
+    SCBoxL -> '['
+    SCBoxR -> ']'
+    SCEmpty -> '.'
+-}
 
 ---- Processing ---------------------------------------------------------------
 
@@ -306,6 +313,14 @@ executeAllMoves moves state =
       let state' = executeMove move state
        in executeAllMoves moves' state'
 
+executeAllMovesLarge :: Moves -> SState -> SState
+executeAllMovesLarge moves state =
+  case popMove moves of
+    Nothing -> state
+    Just (move, moves') ->
+      let state' = executeMoveLarge move state
+       in executeAllMovesLarge moves' state'
+
 -- | Sum up the "GPS coordinates" of a room map.
 sumGPSCoords :: RoomMap -> Int
 sumGPSCoords (RoomMap grid) =
@@ -317,6 +332,129 @@ sumGPSCoords (RoomMap grid) =
             _ -> Nothing
       )
     $ Grid.rowMajorCoords grid
+
+sumGPSCoordsLarge :: SRoomMap -> Int
+sumGPSCoordsLarge (SRoomMap grid) =
+  sum
+    $ mapMaybe
+      ( \rc@(r, c) ->
+          case Grid.getElemUnsafe grid rc of
+            SCBoxL -> Just $ 100 * fromIntegral r + fromIntegral c
+            _ -> Nothing
+      )
+    $ Grid.rowMajorCoords grid
+
+scaleUpState :: State -> SState
+scaleUpState (State rm (V2 x y)) = SState (scaleUpRoomMap rm) (V2 (2 * x) y)
+
+scaleUpRoomMap :: RoomMap -> SRoomMap
+scaleUpRoomMap (RoomMap g0) =
+  SRoomMap $
+    fromMaybe (error "Could not construct Grid") $
+      Grid.fromList (Grid.getRows g0) (Grid.getCols g0 * 2) $
+        concatMap modCell (Grid.toList g0)
+  where
+    modCell :: Cell -> [SCell]
+    modCell c =
+      case c of
+        CWall -> [SCWall, SCWall]
+        CBox -> [SCBoxL, SCBoxR]
+        CEmpty -> [SCEmpty, SCEmpty]
+
+executeMoveLarge :: Move -> SState -> SState
+executeMoveLarge move sstate =
+  case moveMask move sstate of
+    Nothing -> sstate
+    Just mask -> moveMaskElements move mask sstate
+
+-- | Once a move mask has been established, move all its elements.
+moveMaskElements :: Move -> MoveMask -> SState -> SState
+moveMaskElements move mask sstate =
+  let SRoomMap (grid :: Grid V.Vector SCell) = sstateMap sstate
+      robot_pos = sstateRobot sstate
+      inc = v2Add (moveToInc move)
+   in runST $ do
+        mgrid <- Grid.thaw grid
+        -- Blank out the coordinates of all mask elements in the current
+        -- spots.
+        forM_ (Grid.rowMajorCoords mask) $ \rc ->
+          when (Grid.getElemUnsafe mask rc) $ Grid.write mgrid rc SCEmpty
+        -- Set all mask elements.
+        forM_ (Grid.rowMajorCoords mask) $ \rc ->
+          when (Grid.getElemUnsafe mask rc) $ do
+            let e = Grid.getElemUnsafe grid rc
+            Grid.write mgrid (v2ToGridRC . inc . gridRCToV2 $ rc) e
+        grid' <- Grid.freeze mgrid
+        pure $ SState (SRoomMap grid') (inc robot_pos)
+
+-- | Establish the cells that will participate in a move, if that move is
+--   valid.
+moveMask :: Move -> SState -> Maybe MoveMask
+moveMask move sstate = runST $ do
+  let SRoomMap (grid :: Grid V.Vector SCell) = sstateMap sstate
+  let robot_pos :: V2 = sstateRobot sstate
+
+  -- The "front" is all coordinates that are participating in the move, at the
+  -- leading-edge of the coordinates we're investigatin.
+  ref_front <- newSTRef [robot_pos]
+
+  mask <- Grid.thaw . Grid.emptyBoolGridMatchingSize $ grid
+
+  outcome :: Bool <- loopSTMaybe $ do
+    front :: [V2] <- readSTRef ref_front
+    let m_next_coords :: Maybe [V2] =
+          concat <$> mapM (growFrontCoords move grid) front
+    case m_next_coords of
+      Nothing -> pure . Just $ False
+      Just coords -> do
+        front' :: [V2] <- fmap catMaybes $ forM coords $ \coord -> do
+          in_mask <- Grid.read mask (v2ToGridRC coord)
+          if in_mask
+            then pure Nothing
+            else do
+              Grid.write mask (v2ToGridRC coord) True
+              pure (Just coord)
+
+        if null front'
+          then pure . Just $ True
+          else do
+            writeSTRef ref_front front'
+            pure Nothing
+
+  if outcome then Just <$> Grid.freeze mask else pure Nothing
+
+-- | For a single position in the grid, find the next the coordinates which are
+--   involved with pushing boxes from that position.
+growFrontCoords :: Move -> Grid V.Vector SCell -> V2 -> Maybe [V2]
+growFrontCoords move grid pos =
+  let delta = moveToInc move
+      inc = v2Add delta
+      pos'@(V2 x y) = inc pos
+      e = Grid.getElemUnsafe grid (v2ToGridRC pos')
+   in if move == MoveLeft || move == MoveRight
+        then case e of
+          SCWall -> Nothing
+          SCBoxL ->
+            if move == MoveLeft
+              then Just [pos']
+              else Just [pos', inc pos']
+          SCBoxR ->
+            if move == MoveRight
+              then Just [pos']
+              else Just [pos', inc pos']
+          SCEmpty -> Just []
+        else case e of
+          SCWall -> Nothing
+          SCBoxL -> Just [pos', V2 (x + 1) y]
+          SCBoxR -> Just [pos', V2 (x - 1) y]
+          SCEmpty -> Just []
+
+loopSTMaybe :: ST s (Maybe a) -> ST s a
+loopSTMaybe action =
+  action >>= \result ->
+    case result of
+      Nothing -> loopSTMaybe action
+      Just x -> pure x
 
 ---- Parsing ------------------------------------------------------------------
 

@@ -407,15 +407,19 @@ boolGridOrUnsafe gridA gridB =
 
 -- | Or two boolean grids together if they are the same size.
 boolGridOr :: BoolGrid -> BoolGrid -> Maybe BoolGrid
-boolGridOr gridA gridB =
+boolGridOr = boolGridOp (||)
+
+-- | Combine two boolean grids using an operation.
+boolGridOp :: (Bool -> Bool -> Bool) -> BoolGrid -> BoolGrid -> Maybe BoolGrid
+boolGridOp op gridA gridB =
   let n_rows = getRows gridA
       n_cols = getCols gridA
-      sz = (n_rows == getRows gridB) && (n_cols == getCols gridB)
-   in if sz
+      sz_ok = (n_rows == getRows gridB) && (n_cols == getCols gridB)
+   in if sz_ok
         then
           Just $
             Grid n_rows n_cols $
-              VG.zipWith (||) (cells gridA) (cells gridB)
+              VG.zipWith op (cells gridA) (cells gridB)
         else Nothing
 
 floodFill :: (VG.Vector v a, Eq a) => (Word32, Word32) -> Grid v a -> BoolGrid
