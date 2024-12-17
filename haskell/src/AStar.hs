@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module AStar (astar, Result (NoPathFound, PathFound)) where
+module AStar (astar, Result (NoPathFound, PathsFound), Path (Path)) where
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -15,14 +15,26 @@ type PrimaryCostFn action node cost = (action, node) -> cost
 
 type HeuristicFn node cost = node -> cost
 
+-- | Result of path finding.
 data Result action node
-  = NoPathFound
-  | PathFound node [(action, node)]
+  = -- | No paths were found.
+    NoPathFound
+  | -- | At least one path was found.
+    PathsFound [Path action node]
   deriving (Eq, Show)
 
+-- | A path from the start node to the end of the path.
+data Path action node
+  = Path node [(action, node)]
+  deriving (Eq, Show)
+
+-- | A*-Dallas-Multi-Path
+--
+--   This version of A* finds all paths from the start fo the end node that
+--   have equal-best score.
 astar ::
   forall action node cost.
-  (Ord node, Num cost, Ord cost, Show action, Show node, Show cost) =>
+  (Ord node, Num cost, Ord cost) =>
   node ->
   ReachedEndFn node ->
   SuccessorFn action node ->
@@ -57,7 +69,11 @@ data State action node cost = State
     -- | Primary cost function.
     statePrimaryCost :: PrimaryCostFn action node cost,
     -- | Heuristic function.
-    stateHeuristic :: HeuristicFn node cost
+    stateHeuristic :: HeuristicFn node cost,
+    -- | Best `ppTotalCost` cost, if found.
+    stateOptimalCost :: Maybe cost,
+    -- | Paths already found.
+    statePathsFound :: [Path action node]
   }
 
 -- | Set up the initial state for iterations of the A* algorithm.
@@ -80,33 +96,38 @@ initState start_node end_fn successor primary_cost heuristic =
         successor
         primary_cost
         heuristic
+        Nothing
+        []
 
 -- | Result of taking a step.
 data StepResult action node cost
   = -- | Evaluation should continue using the state contained.
     StepContinue (State action node cost)
   | -- | Evaluation is complete, and we have a result.
-    StepDone (Result action node)
+    StepDone (State action node cost)
 
 -- | Repeatedly call the `step` function until we have found a result.
 stepUntilDone ::
   forall node action cost.
-  (Ord node, Num cost, Ord cost, Show action, Show node, Show cost) =>
+  (Ord node, Num cost, Ord cost) =>
   State action node cost ->
   Result action node
 stepUntilDone state =
   case step state of
     StepContinue state' -> stepUntilDone state'
-    StepDone result -> result
+    StepDone state' ->
+      case statePathsFound state' of
+        [] -> NoPathFound
+        paths -> PathsFound paths
 
 step ::
   forall node action cost.
-  (Ord node, Num cost, Ord cost, Show action, Show node, Show cost) =>
+  (Ord node, Num cost, Ord cost) =>
   State action node cost ->
   StepResult action node cost
 step state =
   case PQ.minView (statePriorityQueue state) of
-    Nothing -> StepDone NoPathFound
+    Nothing -> StepDone state
     Just (min_path, pqueue) ->
       let min_node = ppHead min_path
           end_fn = stateReachedEndFn state
@@ -114,7 +135,26 @@ step state =
           primary_cost = statePrimaryCost state
           heuristic = stateHeuristic state
        in if end_fn min_node
-            then StepDone (constructPath . ppVisited $ min_path)
+            then case stateOptimalCost state of
+              Nothing ->
+                StepContinue $
+                  state
+                    { statePriorityQueue = pqueue,
+                      statePathsFound = [constructPath (ppVisited min_path)],
+                      stateOptimalCost =
+                        Just $ ppAccumulatedPrimaryCost min_path
+                    }
+              Just opt_cost ->
+                if ppAccumulatedPrimaryCost min_path > opt_cost
+                  then StepDone state
+                  else
+                    StepContinue $
+                      state
+                        { statePriorityQueue = pqueue,
+                          statePathsFound =
+                            constructPath (ppVisited min_path)
+                              : statePathsFound state
+                        }
             else
               let successors :: [PartialPath action node cost]
                   successors =
@@ -134,7 +174,7 @@ step state =
                           Nothing ->
                             (Map.insert n apc visited, pp : accum)
                           Just visited_cost ->
-                            if visited_cost <= apc
+                            if visited_cost < apc
                               then (visited, accum)
                               else (Map.insert n apc visited, pp : accum)
 
@@ -172,12 +212,12 @@ ppHead :: PartialPath action node cost -> node
 ppHead = snd . head . ppVisited
 
 -- | Given a final path to a node, construct it as a `Result`.
-constructPath :: [(Maybe action, node)] -> Result action node
+constructPath :: [(Maybe action, node)] -> Path action node
 constructPath xs =
   case reverse xs of
-    (Nothing, start_node) : ys -> PathFound start_node (fmap f ys)
+    (Nothing, start_node) : ys -> Path start_node (fmap f ys)
       where
         f :: (Maybe action, node) -> (action, node)
         f (Just a, n) = (a, n)
         f _ = error "constructPath: non-start node was missing action"
-    _ -> error "constructPath: start node had associated action"
+    _ -> error "constructPath: start node had an associated action"

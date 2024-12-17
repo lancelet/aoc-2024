@@ -1,16 +1,19 @@
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module P16 where
+module P16 (main, mainEx1, mainEx2) where
 
-import AStar (astar)
+import AStar (Path (Path), astar)
 import qualified AStar
+import Control.Monad (forM_)
+import Control.Monad.ST (runST)
+import Data.Function ((&))
 import Data.Maybe (fromMaybe, mapMaybe, maybeToList)
 import Data.Text (Text)
 import Data.Text.IO (readFile)
+import qualified Data.Vector.Unboxed as VU
 import Data.Void (Void)
 import Data.Word (Word32)
-import Grid (BoolGrid)
+import Grid (BoolGrid, Grid)
 import qualified Grid
 import System.Exit (exitFailure)
 import Text.Megaparsec (Parsec, eof, errorBundlePretty, optional, parse, some, (<|>))
@@ -21,14 +24,7 @@ main :: IO ()
 main = do
   putStrLn "Day 16"
   part1
-
-part1 :: IO ()
-part1 = do
-  putStrLn "Part 1"
-  let filePath = "../inputs/input-day-16.txt"
-  maze <- loadFile filePath
-  let pathScore = scorePath . solvePath $ maze
-  putStrLn $ "pathScore = " <> show pathScore
+  part2
 
 mainEx1 :: IO ()
 mainEx1 = do
@@ -36,10 +32,11 @@ mainEx1 = do
   let filePath = "../inputs/input-day-16-example-1.txt"
   maze <- loadFile filePath
   putStrLn $ prettyMaze maze
-  let soln = solvePath maze
-  let s = scorePath soln
-  print soln
-  putStrLn $ "score = " <> show s
+  let paths = solvePath maze
+  let path_grid = markAllPaths maze paths
+  let n_path_tiles = countAllPathTiles path_grid
+  putStrLn $ prettyMazeAndPaths maze path_grid
+  putStrLn $ "Number of path tiles: " <> show n_path_tiles
 
 mainEx2 :: IO ()
 mainEx2 = do
@@ -47,18 +44,76 @@ mainEx2 = do
   let filePath = "../inputs/input-day-16-example-2.txt"
   maze <- loadFile filePath
   putStrLn $ prettyMaze maze
-  let soln = solvePath maze
-  let s = scorePath soln
-  print soln
-  putStrLn $ "score = " <> show s
+  let paths = solvePath maze
+  let path_grid = markAllPaths maze paths
+  let n_path_tiles = countAllPathTiles path_grid
+  putStrLn $ prettyMazeAndPaths maze path_grid
+  putStrLn $ "Number of path tiles: " <> show n_path_tiles
 
----- Branching Traversal ------------------------------------------------------
+part1 :: IO ()
+part1 = do
+  putStrLn "Part 1"
+  let filePath = "../inputs/input-day-16.txt"
+  maze <- loadFile filePath
+  let pathScore = scorePath . (\(Path _ tl) -> tl) . head . solvePath $ maze
+  putStrLn $ "pathScore = " <> show pathScore
 
-solvePath :: Maze -> [(Action, Node)]
+part2 :: IO ()
+part2 = do
+  putStrLn "Part 2"
+  let filePath = "../inputs/input-day-16.txt"
+  maze <- loadFile filePath
+  let paths = solvePath maze
+  let path_grid = markAllPaths maze paths
+  let n_path_tiles = countAllPathTiles path_grid
+  putStrLn $ "Number of path tiles: " <> show n_path_tiles
+
+---- Path Finding -------------------------------------------------------------
+
+-- | Boolean grid indicating if a cell is on some path from beginning to end.
+type PathGrid = BoolGrid
+
+countAllPathTiles :: PathGrid -> Int
+countAllPathTiles = length . filter id . Grid.toList
+
+prettyMazeAndPaths :: Maze -> PathGrid -> String
+prettyMazeAndPaths maze pgrid =
+  let rows = mazeRows maze
+      cols = mazeCols maze
+
+      charGrid :: Grid VU.Vector Char
+      charGrid = runST $ do
+        g <- Grid.thaw (Grid.filledWith rows cols ' ')
+        let rcs = Grid.rowMajorCoords pgrid
+        forM_ rcs $ \rc -> do
+          let is_maze_wall = wallAt' maze rc
+          let is_path_cell = Grid.getElemUnsafe pgrid rc
+          let c = case (is_maze_wall, is_path_cell) of
+                (False, False) -> '.'
+                (True, False) -> '#'
+                (False, True) -> 'O'
+                (True, True) -> error "Cell both wall and path!"
+          Grid.write g rc c
+        Grid.freeze g
+   in unlines $ Grid.toLists charGrid
+
+markAllPaths :: Maze -> [Path Action Node] -> PathGrid
+markAllPaths maze paths =
+  let pathToNodes :: Path Action Node -> [Node]
+      pathToNodes (Path s ans) = s : fmap snd ans
+
+      ps :: [RC]
+      ps = concatMap pathToNodes paths & fmap nodePosition
+   in runST $ do
+        mask <- Grid.thaw . Grid.emptyBoolGridMatchingSize . mazeWalls $ maze
+        forM_ ps $ \rc -> Grid.write mask rc True
+        Grid.freeze mask
+
+solvePath :: Maze -> [Path Action Node]
 solvePath maze =
   case astar sn ef successor cost heuristic of
     AStar.NoPathFound -> error "A* could not find a valid path"
-    AStar.PathFound _start ns -> ns
+    AStar.PathsFound paths -> paths
   where
     sn :: Node
     sn = Node PointE (mazeStart maze)
