@@ -1,6 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module AStar (astar, Result (NoPathFound, PathsFound), Path (Path)) where
+module AStar
+  ( astar,
+    Mode (ModeSingle, ModeAll),
+    Result (NoPathFound, PathsFound),
+    Path (Path),
+  )
+where
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -28,6 +34,9 @@ data Path action node
   = Path node [(action, node)]
   deriving (Eq, Show)
 
+-- | Mode of A* - find all paths or just one.
+data Mode = ModeSingle | ModeAll deriving (Eq, Show)
+
 -- | A*-Dallas-Multi-Path
 --
 --   This version of A* finds all paths from the start fo the end node that
@@ -35,14 +44,15 @@ data Path action node
 astar ::
   forall action node cost.
   (Ord node, Num cost, Ord cost) =>
+  Mode ->
   node ->
   ReachedEndFn node ->
   SuccessorFn action node ->
   PrimaryCostFn action node cost ->
   HeuristicFn node cost ->
   Result action node
-astar start_node end_fn successor primary_cost heuristic =
-  stepUntilDone $
+astar mode start_node end_fn successor primary_cost heuristic =
+  stepUntilDone mode $
     initState start_node end_fn successor primary_cost heuristic
 
 -- | Partial path from the start node to some place within the domain.
@@ -110,11 +120,12 @@ data StepResult action node cost
 stepUntilDone ::
   forall node action cost.
   (Ord node, Num cost, Ord cost) =>
+  Mode ->
   State action node cost ->
   Result action node
-stepUntilDone state =
-  case step state of
-    StepContinue state' -> stepUntilDone state'
+stepUntilDone mode state =
+  case step mode state of
+    StepContinue state' -> stepUntilDone mode state'
     StepDone state' ->
       case statePathsFound state' of
         [] -> NoPathFound
@@ -123,9 +134,10 @@ stepUntilDone state =
 step ::
   forall node action cost.
   (Ord node, Num cost, Ord cost) =>
+  Mode ->
   State action node cost ->
   StepResult action node cost
-step state =
+step mode state =
   case PQ.minView (statePriorityQueue state) of
     Nothing -> StepDone state
     Just (min_path, pqueue) ->
@@ -135,26 +147,33 @@ step state =
           primary_cost = statePrimaryCost state
           heuristic = stateHeuristic state
        in if end_fn min_node
-            then case stateOptimalCost state of
-              Nothing ->
-                StepContinue $
-                  state
-                    { statePriorityQueue = pqueue,
-                      statePathsFound = [constructPath (ppVisited min_path)],
-                      stateOptimalCost =
-                        Just $ ppAccumulatedPrimaryCost min_path
-                    }
-              Just opt_cost ->
-                if ppAccumulatedPrimaryCost min_path > opt_cost
-                  then StepDone state
-                  else
+            then case mode of
+              ModeAll ->
+                case stateOptimalCost state of
+                  Nothing ->
                     StepContinue $
                       state
                         { statePriorityQueue = pqueue,
-                          statePathsFound =
-                            constructPath (ppVisited min_path)
-                              : statePathsFound state
+                          statePathsFound = [constructPath (ppVisited min_path)],
+                          stateOptimalCost =
+                            Just $ ppAccumulatedPrimaryCost min_path
                         }
+                  Just opt_cost ->
+                    if ppAccumulatedPrimaryCost min_path > opt_cost
+                      then StepDone state
+                      else
+                        StepContinue $
+                          state
+                            { statePriorityQueue = pqueue,
+                              statePathsFound =
+                                constructPath (ppVisited min_path)
+                                  : statePathsFound state
+                            }
+              ModeSingle ->
+                StepDone $
+                  state
+                    { statePathsFound = [constructPath (ppVisited min_path)]
+                    }
             else
               let successors :: [PartialPath action node cost]
                   successors =
@@ -174,9 +193,13 @@ step state =
                           Nothing ->
                             (Map.insert n apc visited, pp : accum)
                           Just visited_cost ->
-                            if visited_cost < apc
-                              then (visited, accum)
-                              else (Map.insert n apc visited, pp : accum)
+                            let cmpop =
+                                  case mode of
+                                    ModeSingle -> (<=)
+                                    ModeAll -> (<)
+                             in if visited_cost `cmpop` apc
+                                  then (visited, accum)
+                                  else (Map.insert n apc visited, pp : accum)
 
                   (visited', esuccessors) = foldr fold_fn fold_init successors
 

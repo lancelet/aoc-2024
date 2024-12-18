@@ -2,7 +2,7 @@
 
 module P16 (main, mainEx1, mainEx2) where
 
-import AStar (Path (Path), astar)
+import AStar (Mode (ModeAll), Path (Path), astar)
 import qualified AStar
 import Control.Monad (forM_)
 import Control.Monad.ST (runST)
@@ -111,7 +111,7 @@ markAllPaths maze paths =
 
 solvePath :: Maze -> [Path Action Node]
 solvePath maze =
-  case astar sn ef successor cost heuristic of
+  case astar ModeAll sn ef successor cost heuristic of
     AStar.NoPathFound -> error "A* could not find a valid path"
     AStar.PathsFound paths -> paths
   where
