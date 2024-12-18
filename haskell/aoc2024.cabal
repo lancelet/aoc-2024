@@ -43,6 +43,7 @@ library
       P14
       P15
       P16
+      P17
   other-modules:
       Paths_aoc2024
   autogen-modules:
@@ -448,7 +449,32 @@ executable p16
       Paths_aoc2024
   hs-source-dirs:
       app/day16
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N -g -fprof-auto -fprof-auto-calls
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      JuicyPixels >=3.3.9 && <4
+    , MemoTrie >=0.6.11 && <1
+    , aoc2024
+    , base >=4.7 && <5
+    , containers >=0.6.7 && <1
+    , deepseq >=1.4.8.1 && <2
+    , hashable >=1.4.4.0 && <2
+    , megaparsec >=9.5.0 && <10
+    , pqueue >=1.5.0.0 && <2
+    , text >=2.0.2 && <3
+    , unordered-containers >=0.2.20 && <1
+    , vector >=0.13.1.0 && <0.14
+    , vector-algorithms >=0.9.0.2 && <1
+  default-language: Haskell2010
+
+executable p17
+  main-is: Main.hs
+  other-modules:
+      Paths_aoc2024
+  autogen-modules:
+      Paths_aoc2024
+  hs-source-dirs:
+      app/day17
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       JuicyPixels >=3.3.9 && <4
     , MemoTrie >=0.6.11 && <1
