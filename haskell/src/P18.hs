@@ -1,17 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module P18 where
+module P18 (main, mainEx1) where
 
-import AStar (Mode (ModeSingle), Path (Path), Result (NoPathFound, PathsFound), astar)
+import AStar
+  ( Mode (ModeSingle),
+    Path (Path),
+    Result (NoPathFound, PathsFound),
+    astar,
+  )
 import Control.Monad (forM_)
 import Control.Monad.ST (runST)
 import Data.Bifunctor (second)
 import Data.Function ((&))
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Text.IO (readFile)
-import qualified Data.Text.IO as T
 import Data.Void (Void)
 import Data.Word (Word32)
 import Grid (BoolGrid)
@@ -26,6 +29,7 @@ main :: IO ()
 main = do
   putStrLn "Day 18"
   part1
+  part2
 
 part1 :: IO ()
 part1 = do
@@ -33,7 +37,8 @@ part1 = do
   let inputFile = "../inputs/input-day-18.txt"
   fallingBytes <- loadFile inputFile
   let memSpace = populateMemSpace 71 71 1024 fallingBytes
-  let nSteps = navigateMemSpaceNSteps memSpace
+  let nSteps =
+        fromMaybe (error "No path found") (navigateMemSpaceNSteps memSpace)
   putStrLn $ "Length of path: " <> show nSteps
 
 mainEx1 :: IO ()
@@ -41,14 +46,52 @@ mainEx1 = do
   putStrLn "Example 1"
   let inputFile = "../inputs/input-day-18-example.txt"
   fallingBytes <- loadFile inputFile
-  let memSpace = populateMemSpace 7 7 12 fallingBytes
-  let nSteps = navigateMemSpaceNSteps memSpace
-  T.putStrLn $ prettyMemSpace memSpace
-  let path = head $ navigateMemSpace memSpace
-  putStrLn $ "Path: " <> show path
-  putStrLn $ "Length of path: " <> show nSteps
+  let mxy = findBlockingFallingByte 7 7 12 fallingBytes
+  putStrLn $ "Blocking byte coordinates: " <> show mxy
+
+part2 :: IO ()
+part2 = do
+  putStrLn "Part 2"
+  let inputFile = "../inputs/input-day-18.txt"
+  fallingBytes <- loadFile inputFile
+  let mxy = findBlockingFallingByte 71 71 1024 fallingBytes
+  putStrLn $ "Block byte coordinates: " <> show mxy
 
 ---- Processing ---------------------------------------------------------------
+
+findBlockingFallingByte ::
+  -- | Number of rows of the memory space.
+  Word32 ->
+  -- | Number of columns of the memory space.
+  Word32 ->
+  -- | Starting number of bytes.
+  Int ->
+  -- | The falling bytes.
+  FallingBytes ->
+  -- | Optional falling byte that blocks the path.
+  Maybe XY
+findBlockingFallingByte rows cols start_bytes fb =
+  let lohi_init = (start_bytes, length . unFallingBytes $ fb)
+      p i =
+        let memSpace = populateMemSpace rows cols i fb
+         in case navigateMemSpaceNSteps memSpace of
+              Just _ -> False
+              Nothing -> True
+      maybe_idx = binaryThresholdSearch lohi_init p
+   in case maybe_idx of
+        Nothing -> Nothing
+        Just i -> Just $ unFallingBytes fb !! i
+
+binaryThresholdSearch :: (Int, Int) -> (Int -> Bool) -> Maybe Int
+binaryThresholdSearch lohi p =
+  case lohi of
+    (lo, hi) | lo + 1 >= hi, p lo -> Just (lo - 1)
+    (lo, hi) | lo + 1 >= hi, p hi -> Just (hi - 1)
+    (lo, hi) ->
+      let h = (hi + lo) `div` 2
+       in if p h
+            then binaryThresholdSearch (lo, h) p
+            else binaryThresholdSearch (h + 1, hi) p
 
 -- | Populate the memory space from a list of falling bytes.
 populateMemSpace ::
@@ -70,17 +113,17 @@ populateMemSpace rows cols n_bytes fb = runST $ do
 
 -- | Find the number of steps to get from the beginning to end of the
 --   memory space.
-navigateMemSpaceNSteps :: MemSpace -> Int
-navigateMemSpaceNSteps =
-  (\(Path _ xs) -> length xs) . head . navigateMemSpace
+navigateMemSpaceNSteps :: MemSpace -> Maybe Int
+navigateMemSpaceNSteps m =
+  case navigateMemSpace m of
+    NoPathFound -> Nothing
+    PathsFound ps -> Just . (\(Path _ xs) -> length xs) . head $ ps
 
 -- | Use A* to find the paths from the beginning of the memory space to
 --   the end location.
-navigateMemSpace :: MemSpace -> [Path Dir Node]
+navigateMemSpace :: MemSpace -> Result Dir Node
 navigateMemSpace memSpace =
-  case astar ModeSingle start end_fn successor cost heuristic of
-    NoPathFound -> error "No navigable paths were found."
-    PathsFound paths -> paths
+  astar ModeSingle start end_fn successor cost heuristic
   where
     start = Node (0, 0)
     target = memSpaceTarget memSpace
@@ -176,6 +219,7 @@ memSpaceCols = Grid.getCols . unMemSpace
 memSpaceTarget :: MemSpace -> RC
 memSpaceTarget m = (memSpaceRows m - 1, memSpaceCols m - 1)
 
+{-
 -- | Pretty-print the `MemSpace` grid.
 prettyMemSpace :: MemSpace -> Text
 prettyMemSpace memSpace =
@@ -184,6 +228,7 @@ prettyMemSpace memSpace =
     prettyLine = T.pack . fmap prettyCell
     prettyCell True = '#'
     prettyCell False = '.'
+-}
 
 ---- Parsing ------------------------------------------------------------------
 
