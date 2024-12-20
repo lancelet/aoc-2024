@@ -4,6 +4,7 @@
 module Grid
   ( Grid,
     BoolGrid,
+    CharGrid,
     filledWith,
     fromList,
     fromLists,
@@ -20,6 +21,8 @@ module Grid
     setMulti,
     countEqual,
     parseGridDenseNL,
+    toCharGrid,
+    prettyCharGrid,
     thaw,
     freeze,
     read,
@@ -43,6 +46,8 @@ import Control.Monad.ST (runST)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Vector.Generic as VG
 import qualified Data.Vector.Generic.Mutable as VGM
 import Data.Vector.Mutable (PrimMonad, PrimState)
@@ -227,6 +232,21 @@ unlindex grid lx =
         then Nothing
         else Just (row, col)
 -}
+
+type CharGrid = Grid VU.Vector Char
+
+-- | Convert a grid to a grid of characters.
+toCharGrid :: (VG.Vector v a) => (a -> Char) -> Grid v a -> CharGrid
+toCharGrid f grid =
+  fromMaybe (error "toCharGrid: conversion failed") $
+    fromList
+      (getRows grid)
+      (getCols grid)
+      (f <$> toList grid)
+
+-- | Pretty-print a grid of characters.
+prettyCharGrid :: (VG.Vector v a, a ~ Char) => Grid v a -> Text
+prettyCharGrid = T.unlines . fmap T.pack . toLists
 
 -- | Check if a grid coordinate is in range.
 coordInRange :: Grid v a -> (Word32, Word32) -> Bool

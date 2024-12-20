@@ -5,6 +5,7 @@ module AStar
     Mode (ModeSingle, ModeAll),
     Result (NoPathFound, PathsFound),
     Path (Path),
+    pathNodes,
   )
 where
 
@@ -33,6 +34,10 @@ data Result action node
 data Path action node
   = Path node [(action, node)]
   deriving (Eq, Show)
+
+-- | Extract all nodes (including the start) from a Path.
+pathNodes :: Path action node -> [node]
+pathNodes (Path hd ans) = hd : fmap snd ans
 
 -- | Mode of A* - find all paths or just one.
 data Mode = ModeSingle | ModeAll deriving (Eq, Show)
